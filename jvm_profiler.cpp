@@ -49,6 +49,19 @@ struct ProcCtx
 };
 
 
+static bool process_alive(pid_t pid)
+{
+    if (pid <= 0) {
+        return false;
+    }
+    int rc = kill(pid, 0);
+    if (rc == 0) {
+        return true;
+    }
+    return errno != ESRCH;
+}
+
+
 static void on_sig(int)
 {
     g_stop = 1;
@@ -412,6 +425,7 @@ static bool parse_heap_used_total_kb(const std::string &heap_info_text,
 static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
 {
     // jcmd Thread.print
+    if (!proce_alive(pc.pid)) return;
     std::string tp = exec_capture("jcmd " + std::to_string(pc.pid) + " Thread.print 2>/dev/null");
     if (!tp.empty()) {
         fs::path summary_file = pc.out_dir / ("thread_summary_" + std::to_string(elapsed_ms) + "ms.txt");
@@ -424,7 +438,7 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
         pc.thr_top5 = top.top5[4];
     }
     // jcmd heap_info
-    fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
+    // fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
     // exec_to_file("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
     // std::string heap_text;
     // {
@@ -433,7 +447,7 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
     //     ss << f.rdbuf();
     //     heap_text = ss.str();
     // }
-
+    if (!proce_alive(pc.pid)) return;
     std::string heap_text = exec_capture("jcmd " + std::to_string(pc.pid) + " GC.heap_info");
     if (!parse_heap_used_total_kb(heap_text, pc.heap_used_kb, pc.heap_total_kb)) {
         std::cerr << "[x] parse heap info failed" << std::endl;
@@ -489,18 +503,6 @@ static void summarize_jfr_threadstart(const ProcCtx &pc)
 //==============================================================================
 //  Surefire PID Discovery (jcmd -l)
 //==============================================================================
-
-static bool process_alive(pid_t pid)
-{
-    if (pid <= 0) {
-        return false;
-    }
-    int rc = kill(pid, 0);
-    if (rc == 0) {
-        return true;
-    }
-    return errno != ESRCH;
-}
 
 static std::vector<std::pair<pid_t, std::string>> jcmd_list()
 {
