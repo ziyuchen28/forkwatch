@@ -90,10 +90,13 @@ struct VmmapStats
 {
     long long stack_vsz_kb = 0;
     long long stack_rss_kb = 0;
+    long long stack_dirty_kb = 0;
+    long long stack_swapped_kb = 0;
     long long vm_allocate_rss_kb = 0;
     long long vm_allocate_swapped_kb = 0;
     long long malloc_rss_kb = 0; // sum of MALLOC_* 
     long long total_rss_kb = 0;
+    long long total_dirty_kb = 0;
     long long total_swapped_kb = 0;
 };
 
@@ -102,6 +105,7 @@ struct VmmapRow
     std::string name;
     long long virtual_kb = 0;
     long long resident_kb = 0;
+    long long dirty_kb = 0;
     long long swapped_kb = 0;
 };
 
@@ -200,6 +204,7 @@ static std::optional<VmmapRow> parse_vmmap_row(const std::string &line)
     row.name = name;
     row.virtual_kb = sizes_kb[0];
     row.resident_kb = sizes_kb[1];
+    row.dirty_kb = sizes_kb[2];
     row.swapped_kb = sizes_kb[3];
     return row;
 }
@@ -225,6 +230,8 @@ static VmmapStats parse_vmmap_summary_text(const std::string &txt)
         if (name_l == "stack") {
             st.stack_vsz_kb = row.virtual_kb;
             st.stack_rss_kb = row.resident_kb;
+            st.stack_dirty_kb = row.dirty_kb;
+            st.stack_swapped_kb = row.swapped_kb;
             continue;
         }
         if (name_l.rfind("vm_allocate", 0) == 0) {
@@ -239,6 +246,7 @@ static VmmapStats parse_vmmap_summary_text(const std::string &txt)
         }
         if (name_l == "total") {
             st.total_rss_kb = row.resident_kb;
+            st.total_diry_kb = row.dirty_kb;
             st.total_swapped_kb = row.swapped_kb;
             continue;
         }
@@ -250,11 +258,12 @@ static VmmapStats parse_vmmap_summary_text(const std::string &txt)
 static VmmapStats collect_vmmap_stats(ProcCtx &pc, long long elapsed_ms)
 {
     std::string out = exec_capture("vmmap -summary " + std::to_string(pc.pid) + " 2>/dev/null");
-    fs::path raw_path = pc.out_dir / ("vmmap_" + std::to_string(elapsed_ms) + "ms.txt");
-    {
-        std::ofstream f(raw_path, std::ios::out | std::ios::trunc);
-        f << out;
-    }
+    // fs::path raw_path = pc.out_dir / ("vmmap_" + std::to_string(elapsed_ms) + "ms.txt");
+    // {
+    //     std::ofstream f(raw_path, std::ios::out | std::ios::trunc);
+    //     f << out;
+    // }
+    pc.last_vmmap_summary_ms = elapsed_ms;
     return parse_vmmap_summary_text(out);
 }
 
@@ -558,12 +567,10 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         fs::create_directories(pc.out_dir);
         pc.csv_path = out_dir / ("pid" + std::to_string(pid) + ".csv");
         pc.csv.open(pc.csv_path, std::ios::out | std::ios::trunc);
-        pc.csv << "t_ms,alive,kernel_basic_rss_kb,kernel_basic_threads_total,"
-               << "jvm_heap_used_kb,jvm_heap_total_kb,"
-               << "jvm_thread_total,thread_top1,thread_top2,thread_top3,thread_top4,thread_top5,"
-               << "kernel_vmmap_stack_vsz_kb,kernel_vmmap_stack_rss_kb,"
-               << "kernel_vmmap_vm_allocate_rss_kb,kernel_vmmap_vm_allocate_swapped_kb,"
-               << "kernel_vmmap_malloc_rss_kb,kernel_vmmap_total_rss_kb,kernel_vmmap_total_swapped_kb\n";
+        pc.csv << "t_ms,thread,"
+               << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5"
+               << "mach_stack_vsz_kb,mach_stack_rss_kb,mach_stack_dirty_kb,mach_stack_swapped_kb"
+               << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb\n";
         pc.csv.flush();
         pc.rows_since_flush = 0;
         if (start_jfr_on_pid(pid, pc)) {
@@ -614,39 +621,40 @@ static void sample_proc(std::unordered_map<pid_t, ProcCtx> &active,
             os_thread_count = ti.pti_threadnum;  
         }
         pc.csv << elapsed_ms << ","
-               << alive << ","
-               << rss_kb << ","
-               << os_thread_count << ",";
+               << threads << ",";
         // refresh thread+heap summary on cadence
         if (pc.last_jvm_summary_ms < 0 ||
             (elapsed_ms - pc.last_jvm_summary_ms) >= static_cast<long long>(jvm_summary_secs) * 1000LL) {
             refresh_thread_and_heap_summary(pc, elapsed_ms);
-            pc.csv << pc.heap_used_kb << ","
-                   << pc.heap_total_kb << ","
-                   << pc.thr_total << ","
+            pc.csv                    
+                   // << pc.thr_total << ","
                    << pc.thr_top1 << ","
                    << pc.thr_top2 << ","
                    << pc.thr_top3 << ","
                    << pc.thr_top4 << ","
                    << pc.thr_top5 << ",";
+                   // << pc.heap_used_kb << ","
+                   // << pc.heap_total_kb << ","
+
         }
         else {
-            pc.csv << ",,,,,,,";
+            pc.csv << ",,,,,";
         }
         // refresh kernel vmmap summary on cadence
         if (pc.last_vmmap_summary_ms < 0 ||
             (elapsed_ms - pc.last_vmmap_summary_ms) >= static_cast<long long>(vmmap_summary_secs) * 1000LL) {
             VmmapStats vmst = collect_vmmap_stats(pc, elapsed_ms);
-            pc.csv << vmst.stack_vsz_kb << ","
+            pc.csv 
+                   << vmst.stack_vsz_kb << ","
                    << vmst.stack_rss_kb << ","
-                   << vmst.vm_allocate_rss_kb << ","
-                   << vmst.vm_allocate_swapped_kb << ","
-                   << vmst.malloc_rss_kb << ","
+                   << vmst.stack_dirty_kb << ","
+                   << vmst.stack_swapped_kb << ","
                    << vmst.total_rss_kb << ","
+                   << vmst.total_dirty_kb << ","
                    << vmst.total_swapped_kb << "\n";
         }
         else {
-            pc.csv << ",,,,,,\n";
+            pc.csv << ",,,,,,,\n";
         }
         if (++pc.rows_since_flush >= 10) {
             pc.csv.flush();
@@ -710,7 +718,7 @@ int main(int argc, char **argv)
                 return 1; 
             }
             vmmap_summary_secs = std::atoi(argv[++i]);
-            if (vmmap_summary_secs < 1) jvm_summary_secs = 1;
+            if (vmmap_summary_secs < 1) vmmap_summary_secs = 1;
         }
         else {
             Usage();
@@ -733,7 +741,7 @@ int main(int argc, char **argv)
     // log every heartbeat
     auto last_hb = t0;
 
-    int idle_exit_secs = 120;
+    int idle_exit_secs = 60;
     auto last_surefire_seen = t0;
 
     while (!g_stop) {
