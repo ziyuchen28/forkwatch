@@ -35,8 +35,8 @@ struct ProcCtx
     fs::path jfr_path;
     fs::path jfr_threadstart_txt;
     // jvm summary 
-    long long heap_used_kb = 0;
-    long long heap_total_kb = 0;
+    long long heap_used_kb = -1;
+    long long heap_total_kb = -1;
     int thr_total = 0;
     std::string thr_top1;
     std::string thr_top2;
@@ -579,9 +579,10 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         pc.csv_path = out_dir / ("pid" + std::to_string(pid) + ".csv");
         pc.csv.open(pc.csv_path, std::ios::out | std::ios::trunc);
         pc.csv << "t_ms,thread,"
-               << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5,"
+               << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5,jvm_heap_used_kb,jvm_heap_total_kb,"
                << "mach_stack_vsz_kb,mach_stack_rss_kb,mach_stack_dirty_kb,mach_stack_swapped_kb,"
-               << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb\n";
+               << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb,";
+               << "\n";
         pc.csv.flush();
         pc.rows_since_flush = 0;
         if (start_jfr_on_pid(pid, pc)) {
@@ -644,13 +645,13 @@ static void sample_proc(std::unordered_map<pid_t, ProcCtx> &active,
                    << pc.thr_top2 << ","
                    << pc.thr_top3 << ","
                    << pc.thr_top4 << ","
-                   << pc.thr_top5 << ",";
-                   // << pc.heap_used_kb << ","
-                   // << pc.heap_total_kb << ","
+                   << pc.thr_top5 << ","
+                   << pc.heap_used_kb << ","
+                   << pc.heap_total_kb << ",";
 
         }
         else {
-            pc.csv << ",,,,,";
+            pc.csv << ",,,,,,,";
         }
         // refresh kernel vmmap summary on cadence
         if (pc.last_vmmap_summary_ms < 0 ||
