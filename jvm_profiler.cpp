@@ -434,7 +434,7 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
     //     heap_text = ss.str();
     // }
 
-    std::string heap_text = exec_capture("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
+    std::string heap_text = exec_capture("jcmd " + std::to_string(pc.pid) + " GC.heap_info");
     if (!parse_heap_used_total_kb(heap_text, pc.heap_used_kb, pc.heap_total_kb)) {
         std::cerr << "[x] parse heap info failed" << std::endl;
     }
