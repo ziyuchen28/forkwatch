@@ -18,6 +18,8 @@
 namespace fs = std::filesystem;
 
 static volatile sig_atomic_t g_stop = 0;
+static int idle_exit_secs = 300;
+static bool profiling_started = false;
 
 struct ProcCtx
 {
@@ -422,7 +424,7 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
         pc.thr_top5 = top.top5[4];
     }
     // jcmd heap_info
-    // fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
+    fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
     // exec_to_file("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
     // std::string heap_text;
     // {
@@ -559,6 +561,11 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         pid_t pid = it.first;
         if (active.find(pid) != active.end()) continue;
         // new surefire process found
+        if (!profiling_started) {
+            profiling_started = true;
+            idle_exit_secs = 15;
+        }
+
         ProcCtx pc;
         std::cout << "[+] detected surefire pid=" << pid << "\n";
         pc.pid = pid;
@@ -587,7 +594,7 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         if ((current.find(pid) == current.end()) || !process_alive(pid)) {
             std::cout << "[-] detected inactive/exited surefire pid=" << pid << std::endl;
             summarize_jfr_threadstart(pc);
-            fs::remove(pc.jfr_path)
+            fs::remove(pc.jfr_path);
             std::cout << "[-] summarized jfr recording in " << pc.jfr_threadstart_txt << std::endl;
             pc.csv.flush();
             it = active.erase(it);
@@ -744,7 +751,6 @@ int main(int argc, char **argv)
     // log every heartbeat
     auto last_hb = t0;
 
-    int idle_exit_secs = 60;
     auto last_surefire_seen = t0;
 
     while (!g_stop) {
