@@ -422,15 +422,17 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
         pc.thr_top5 = top.top5[4];
     }
     // jcmd heap_info
-    fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
-    exec_to_file("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
-    std::string heap_text;
-    {
-        std::ifstream f(heap_file);
-        std::ostringstream ss;
-        ss << f.rdbuf();
-        heap_text = ss.str();
-    }
+    // fs::path heap_file = pc.out_dir / ("heap_info_" + std::to_string(elapsed_ms) + "ms.txt");
+    // exec_to_file("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
+    // std::string heap_text;
+    // {
+    //     std::ifstream f(heap_file);
+    //     std::ostringstream ss;
+    //     ss << f.rdbuf();
+    //     heap_text = ss.str();
+    // }
+
+    std::string heap_text = exec_capture("jcmd " + std::to_string(pc.pid) + " GC.heap_info", heap_file);
     if (!parse_heap_used_total_kb(heap_text, pc.heap_used_kb, pc.heap_total_kb)) {
         std::cerr << "[x] parse heap info failed" << std::endl;
     }
