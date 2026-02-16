@@ -337,11 +337,11 @@ static ThreadTop summarize_thread_print_text(const std::string &thread_print_tex
 
     ThreadTop out;
     out.total_threads = total;
-    // dump summary & print top five to csv 
-    std::ofstream f(summary_path, std::ios::out | std::ios::trunc);
-    f << "total_threads=" << total << "\n";
+    // // dump summary & print top five to csv 
+    // std::ofstream f(summary_path, std::ios::out | std::ios::trunc);
+    // f << "total_threads=" << total << "\n";
     for (size_t i = 0; i < items.size(); i++) {
-        f << items[i].first << ":" << items[i].second << "\n";
+        // f << items[i].first << ":" << items[i].second << "\n";
         if (i < 5) {
             out.top5.push_back(items[i].first + "=" + std::to_string(items[i].second));
         }
