@@ -1,9 +1,18 @@
 
-CXX       := clang++
+CXX       := g++
 CXXFLAGS  := -std=c++17 -O2 -Wall -Wextra
 BUILD_DIR := build
 TARGET    := $(BUILD_DIR)/jvm_profiler
-SRC       := jvm_profiler.cpp
+UNAME_S   := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+	SRC := jvm_profiler_macos.cpp
+else ifeq ($(UNAME_S),Linux)
+  	SRC := jvm_profiler_linux.cpp
+else 
+	$(error Unsopprted OS: $(UNAME_S))
+endif
+
 
 .PHONY: build run clean
 
