@@ -570,8 +570,8 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         pc.csv_path = out_dir / ("pid" + std::to_string(pid) + ".csv");
         pc.csv.open(pc.csv_path, std::ios::out | std::ios::trunc);
         pc.csv << "t_ms,thread,"
-               << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5"
-               << "mach_stack_vsz_kb,mach_stack_rss_kb,mach_stack_dirty_kb,mach_stack_swapped_kb"
+               << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5,"
+               << "mach_stack_vsz_kb,mach_stack_rss_kb,mach_stack_dirty_kb,mach_stack_swapped_kb,"
                << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb\n";
         pc.csv.flush();
         pc.rows_since_flush = 0;
@@ -587,6 +587,7 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         if ((current.find(pid) == current.end()) || !process_alive(pid)) {
             std::cout << "[-] detected inactive/exited surefire pid=" << pid << std::endl;
             summarize_jfr_threadstart(pc);
+            fs::remove(pc.jfr_path)
             std::cout << "[-] summarized jfr recording in " << pc.jfr_threadstart_txt << std::endl;
             pc.csv.flush();
             it = active.erase(it);
