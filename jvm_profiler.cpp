@@ -425,7 +425,7 @@ static bool parse_heap_used_total_kb(const std::string &heap_info_text,
 static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
 {
     // jcmd Thread.print
-    if (!proce_alive(pc.pid)) return;
+    if (!process_alive(pc.pid)) return;
     std::string tp = exec_capture("jcmd " + std::to_string(pc.pid) + " Thread.print 2>/dev/null");
     if (!tp.empty()) {
         fs::path summary_file = pc.out_dir / ("thread_summary_" + std::to_string(elapsed_ms) + "ms.txt");
@@ -447,7 +447,7 @@ static void refresh_thread_and_heap_summary(ProcCtx &pc, long long elapsed_ms)
     //     ss << f.rdbuf();
     //     heap_text = ss.str();
     // }
-    if (!proce_alive(pc.pid)) return;
+    if (!process_alive(pc.pid)) return;
     std::string heap_text = exec_capture("jcmd " + std::to_string(pc.pid) + " GC.heap_info");
     if (!parse_heap_used_total_kb(heap_text, pc.heap_used_kb, pc.heap_total_kb)) {
         std::cerr << "[x] parse heap info failed" << std::endl;
