@@ -23,7 +23,7 @@ $(TARGET): $(SRC)
 	$(CXX) $(CXXFLAGS) -o $@ $<
 
 run: build
-	./$(TARGET) --interval-ms 1000 --jvm-summary-secs 30 --vmmap-summary-secs 30
+	./$(TARGET) --interval-ms 10000 --jvm-summary-secs 30 --vmmap-summary-secs 30
 
 clean:
 	rm -rf $(BUILD_DIR)
