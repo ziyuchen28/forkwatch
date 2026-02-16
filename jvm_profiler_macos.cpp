@@ -581,7 +581,7 @@ static void sync_surefire_proc(std::unordered_map<pid_t, ProcCtx> &active,
         pc.csv << "t_ms,thread,"
                << "thd_top1,thd_top2,thd_top3,thd_top4,thd_top5,jvm_heap_used_kb,jvm_heap_total_kb,"
                << "mach_stack_vsz_kb,mach_stack_rss_kb,mach_stack_dirty_kb,mach_stack_swapped_kb,"
-               << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb,";
+               << "mach_total_rss_kb,mach_total_dirty_kb,mach_total_swapped_kb,"
                << "\n";
         pc.csv.flush();
         pc.rows_since_flush = 0;
