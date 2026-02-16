@@ -246,7 +246,7 @@ static VmmapStats parse_vmmap_summary_text(const std::string &txt)
         }
         if (name_l == "total") {
             st.total_rss_kb = row.resident_kb;
-            st.total_diry_kb = row.dirty_kb;
+            st.total_dirty_kb = row.dirty_kb;
             st.total_swapped_kb = row.swapped_kb;
             continue;
         }
@@ -621,7 +621,7 @@ static void sample_proc(std::unordered_map<pid_t, ProcCtx> &active,
             os_thread_count = ti.pti_threadnum;  
         }
         pc.csv << elapsed_ms << ","
-               << threads << ",";
+               << os_thread_count << ",";
         // refresh thread+heap summary on cadence
         if (pc.last_jvm_summary_ms < 0 ||
             (elapsed_ms - pc.last_jvm_summary_ms) >= static_cast<long long>(jvm_summary_secs) * 1000LL) {
